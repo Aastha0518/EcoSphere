@@ -1,4 +1,4 @@
-<img width="1312" height="732" alt="image" src="https://github.com/user-attachments/assets/c8b3a344-258f-49c4-ae5c-91073e60bffb" /># 🌿 EcoSphere — Enterprise ESG Management Platform
+# 🌿 EcoSphere — Enterprise ESG Management Platform
 
 > A full-stack enterprise-grade ESG (Environmental, Social & Governance) and CSR (Corporate Social Responsibility) management platform built with React and Node.js.
 
