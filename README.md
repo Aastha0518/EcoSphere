@@ -265,6 +265,6 @@ Key component classes in `EcoSphereApp.css`:
   <img width="1317" height="742" alt="image" src="https://github.com/user-attachments/assets/f4fdb98a-5764-4707-a74a-27880d3eb5b1" />
 - User:
   
- <img width="1242" height="702" alt="image" src="https://github.com/user-attachments/assets/00ce0ae2-778e-4550-b934-b88703e66b4a" />
+  <img width="1242" height="702" alt="image" src="https://github.com/user-attachments/assets/00ce0ae2-778e-4550-b934-b88703e66b4a" />
  
 
