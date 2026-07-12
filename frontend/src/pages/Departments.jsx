@@ -1,56 +1,64 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Plus, Pencil, Trash2, X, Building2, Users,
   ChevronRight, Search, ArrowLeft, Save,
 } from "lucide-react";
 
-// ---------------------------------------------------------------------------
-// Seed data
-// ---------------------------------------------------------------------------
-const SEED_DEPARTMENTS = [
-  { id: 1,  name: "Engineering & Dev",   parent: "",                employees: 320 },
-  { id: 2,  name: "Frontend Team",       parent: "Engineering & Dev", employees: 85 },
-  { id: 3,  name: "Backend Team",        parent: "Engineering & Dev", employees: 110 },
-  { id: 4,  name: "Sales & Accounts",    parent: "",                employees: 210 },
-  { id: 5,  name: "Inside Sales",        parent: "Sales & Accounts",  employees: 90 },
-  { id: 6,  name: "Human Resources",     parent: "",                employees: 48 },
-  { id: 7,  name: "Talent Acquisition",  parent: "Human Resources",   employees: 14 },
-  { id: 8,  name: "Brand & Marketing",   parent: "",                employees: 75 },
-  { id: 9,  name: "Finance & Admin",     parent: "",                employees: 62 },
-  { id: 10, name: "Payroll",             parent: "Finance & Admin",   employees: 18 },
-  { id: 11, name: "Legal & Compliance",  parent: "",                employees: 24 },
-  { id: 12, name: "Customer Success",    parent: "",                employees: 202 },
-];
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
-let nextId = SEED_DEPARTMENTS.length + 1;
+const getToken = () => localStorage.getItem("token");
 
-// ---------------------------------------------------------------------------
-// Inline Add Department Form (component — not a popup)
-// ---------------------------------------------------------------------------
-function AddDepartmentForm({ departments, onSave, onCancel }) {
-  const [name, setName]           = useState("");
-  const [parent, setParent]       = useState("");
+const departmentRequest = async (path = "", options = {}) => {
+  const response = await fetch(`${API_BASE_URL}/api/departments${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+      ...(options.headers || {}),
+    },
+  });
+  const contentType = response.headers.get("content-type") || "";
+
+  if (!contentType.includes("application/json")) {
+    throw new Error("Department API did not return JSON. Check that the backend server is running.");
+  }
+
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || "Department request failed.");
+  }
+
+  return data;
+};
+
+function AddDepartmentForm({ departments, onSave, onCancel, saving, apiError }) {
+  const [name, setName] = useState("");
+  const [parent, setParent] = useState("");
   const [employees, setEmployees] = useState("");
-  const [errors, setErrors]       = useState({});
+  const [errors, setErrors] = useState({});
 
   const validate = () => {
     const e = {};
     if (!name.trim()) e.name = "Department name is required.";
-    if (employees === "" || Number(employees) < 0)
+    if (employees === "" || Number(employees) < 0) {
       e.employees = "Enter a valid employee count.";
+    }
     return e;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    onSave({ name: name.trim(), parent, employees: Number(employees) });
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+    await onSave({ name: name.trim(), parent, employees: Number(employees) });
   };
 
   return (
     <div className="dm-page es-fade-up">
-      {/* Header */}
       <div className="dm-page-header">
         <div>
           <h1 className="dm-page-title">Add Department</h1>
@@ -62,7 +70,6 @@ function AddDepartmentForm({ departments, onSave, onCancel }) {
         </button>
       </div>
 
-      {/* Form card */}
       <div className="dm-add-form-card">
         <div className="dm-add-form-icon-row">
           <div className="dm-add-form-icon-box">
@@ -74,8 +81,9 @@ function AddDepartmentForm({ departments, onSave, onCancel }) {
           </div>
         </div>
 
+        {apiError && <p className="dm-field-error">{apiError}</p>}
+
         <form onSubmit={handleSubmit} className="dm-add-form" noValidate>
-          {/* Department Name */}
           <div className="dm-field">
             <label className="dm-label">
               Department Name <span className="dm-required">*</span>
@@ -83,13 +91,15 @@ function AddDepartmentForm({ departments, onSave, onCancel }) {
             <input
               className={`dm-input ${errors.name ? "dm-input-error" : ""}`}
               value={name}
-              onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: "" })); }}
+              onChange={(e) => {
+                setName(e.target.value);
+                setErrors((p) => ({ ...p, name: "" }));
+              }}
               placeholder="e.g. Engineering & Dev"
             />
             {errors.name && <p className="dm-field-error">{errors.name}</p>}
           </div>
 
-          {/* Parent Department */}
           <div className="dm-field">
             <label className="dm-label">
               Parent Department <span className="dm-optional">(optional)</span>
@@ -99,14 +109,13 @@ function AddDepartmentForm({ departments, onSave, onCancel }) {
               value={parent}
               onChange={(e) => setParent(e.target.value)}
             >
-              <option value="">— None (top-level) —</option>
+              <option value="">None (top-level)</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.name}>{d.name}</option>
               ))}
             </select>
           </div>
 
-          {/* Employee Count */}
           <div className="dm-field">
             <label className="dm-label">
               Employee Count <span className="dm-required">*</span>
@@ -116,20 +125,22 @@ function AddDepartmentForm({ departments, onSave, onCancel }) {
               min="0"
               className={`dm-input ${errors.employees ? "dm-input-error" : ""}`}
               value={employees}
-              onChange={(e) => { setEmployees(e.target.value); setErrors((p) => ({ ...p, employees: "" })); }}
+              onChange={(e) => {
+                setEmployees(e.target.value);
+                setErrors((p) => ({ ...p, employees: "" }));
+              }}
               placeholder="e.g. 120"
             />
             {errors.employees && <p className="dm-field-error">{errors.employees}</p>}
           </div>
 
-          {/* Actions */}
           <div className="dm-add-form-actions">
             <button type="button" className="dm-btn-cancel" onClick={onCancel}>
               Cancel
             </button>
-            <button type="submit" className="dm-btn-save">
+            <button type="submit" className="dm-btn-save" disabled={saving}>
               <Save size={15} />
-              Save Department
+              {saving ? "Saving..." : "Save Department"}
             </button>
           </div>
         </form>
@@ -138,28 +149,29 @@ function AddDepartmentForm({ departments, onSave, onCancel }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Edit Modal (overlay popup — for editing only)
-// ---------------------------------------------------------------------------
-function EditModal({ dept, departments, onSave, onClose }) {
-  const [name, setName]           = useState(dept?.name      ?? "");
-  const [parent, setParent]       = useState(dept?.parent    ?? "");
+function EditModal({ dept, departments, onSave, onClose, saving, apiError }) {
+  const [name, setName] = useState(dept?.name ?? "");
+  const [parent, setParent] = useState(dept?.parent ?? "");
   const [employees, setEmployees] = useState(dept?.employees ?? "");
-  const [errors, setErrors]       = useState({});
+  const [errors, setErrors] = useState({});
 
   const validate = () => {
     const e = {};
     if (!name.trim()) e.name = "Department name is required.";
-    if (employees === "" || Number(employees) < 0)
+    if (employees === "" || Number(employees) < 0) {
       e.employees = "Enter a valid employee count.";
+    }
     return e;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
-    onSave({ name: name.trim(), parent, employees: Number(employees) });
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+    await onSave({ name: name.trim(), parent, employees: Number(employees) });
   };
 
   const parentOptions = departments.filter((d) => d.id !== dept?.id);
@@ -182,13 +194,18 @@ function EditModal({ dept, departments, onSave, onClose }) {
           </button>
         </div>
 
+        {apiError && <p className="dm-field-error">{apiError}</p>}
+
         <form onSubmit={handleSubmit} className="dm-form" noValidate>
           <div className="dm-field">
             <label className="dm-label">Department Name <span className="dm-required">*</span></label>
             <input
               className={`dm-input ${errors.name ? "dm-input-error" : ""}`}
               value={name}
-              onChange={(e) => { setName(e.target.value); setErrors((p) => ({ ...p, name: "" })); }}
+              onChange={(e) => {
+                setName(e.target.value);
+                setErrors((p) => ({ ...p, name: "" }));
+              }}
               placeholder="e.g. Engineering & Dev"
             />
             {errors.name && <p className="dm-field-error">{errors.name}</p>}
@@ -201,7 +218,7 @@ function EditModal({ dept, departments, onSave, onClose }) {
               value={parent}
               onChange={(e) => setParent(e.target.value)}
             >
-              <option value="">— None (top-level) —</option>
+              <option value="">None (top-level)</option>
               {parentOptions.map((d) => (
                 <option key={d.id} value={d.name}>{d.name}</option>
               ))}
@@ -215,7 +232,10 @@ function EditModal({ dept, departments, onSave, onClose }) {
               min="0"
               className={`dm-input ${errors.employees ? "dm-input-error" : ""}`}
               value={employees}
-              onChange={(e) => { setEmployees(e.target.value); setErrors((p) => ({ ...p, employees: "" })); }}
+              onChange={(e) => {
+                setEmployees(e.target.value);
+                setErrors((p) => ({ ...p, employees: "" }));
+              }}
               placeholder="e.g. 120"
             />
             {errors.employees && <p className="dm-field-error">{errors.employees}</p>}
@@ -223,7 +243,9 @@ function EditModal({ dept, departments, onSave, onClose }) {
 
           <div className="dm-actions">
             <button type="button" className="dm-btn-cancel" onClick={onClose}>Cancel</button>
-            <button type="submit" className="dm-btn-save">Save Changes</button>
+            <button type="submit" className="dm-btn-save" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
           </div>
         </form>
       </div>
@@ -231,10 +253,7 @@ function EditModal({ dept, departments, onSave, onClose }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Delete Confirm Dialog
-// ---------------------------------------------------------------------------
-function DeleteConfirm({ dept, onConfirm, onCancel }) {
+function DeleteConfirm({ dept, onConfirm, onCancel, deleting, apiError }) {
   return (
     <div className="dm-overlay" onClick={(e) => e.target === e.currentTarget && onCancel()}>
       <div className="dm-confirm-box es-fade-up">
@@ -243,43 +262,70 @@ function DeleteConfirm({ dept, onConfirm, onCancel }) {
         </div>
         <p className="dm-confirm-title">Delete Department?</p>
         <p className="dm-confirm-msg">
-          <strong>{dept.name}</strong> will be permanently removed. This action cannot be undone.
+          <strong>{dept.name}</strong> will be permanently removed.
         </p>
+        {apiError && <p className="dm-field-error">{apiError}</p>}
         <div className="dm-actions">
           <button className="dm-btn-cancel" onClick={onCancel}>Cancel</button>
-          <button className="dm-btn-danger" onClick={onConfirm}>Yes, Delete</button>
+          <button className="dm-btn-danger" onClick={onConfirm} disabled={deleting}>
+            {deleting ? "Deleting..." : "Yes, Delete"}
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// DEPARTMENTS PAGE
-// ---------------------------------------------------------------------------
 export function DepartmentsPage() {
-  const [departments, setDepartments] = useState(SEED_DEPARTMENTS);
-  const [search, setSearch]           = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);   // inline add view
-  const [editDept, setEditDept]       = useState(null);    // modal edit
-  const [delTarget, setDelTarget]     = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [search, setSearch] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editDept, setEditDept] = useState(null);
+  const [delTarget, setDelTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  // ── filtering & pagination ────────────────────────────────────────────────
+  const loadDepartments = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const data = await departmentRequest();
+      setDepartments(data.data || []);
+    } catch (err) {
+      setError(err.message || "Unable to load departments.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDepartments();
+  }, []);
+
   const filtered = departments.filter(
     (d) =>
       d.name.toLowerCase().includes(search.toLowerCase()) ||
-      d.parent.toLowerCase().includes(search.toLowerCase())
+      (d.parent || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
-  const safePage   = Math.min(currentPage, totalPages);
-  const startIdx   = (safePage - 1) * rowsPerPage;
-  const pageRows   = filtered.slice(startIdx, startIdx + rowsPerPage);
+  const safePage = Math.min(currentPage, totalPages);
+  const startIdx = (safePage - 1) * rowsPerPage;
+  const pageRows = filtered.slice(startIdx, startIdx + rowsPerPage);
 
-  const handleSearch = (val) => { setSearch(val); setCurrentPage(1); };
-  const handleRowsChange = (val) => { setRowsPerPage(Number(val)); setCurrentPage(1); };
+  const handleSearch = (val) => {
+    setSearch(val);
+    setCurrentPage(1);
+  };
+
+  const handleRowsChange = (val) => {
+    setRowsPerPage(Number(val));
+    setCurrentPage(1);
+  };
 
   const getPageNumbers = () => {
     const pages = new Set([1, totalPages, safePage, safePage - 1, safePage + 1]);
@@ -287,52 +333,101 @@ export function DepartmentsPage() {
   };
   const pageNumbers = getPageNumbers();
 
-  // ── CRUD handlers ─────────────────────────────────────────────────────────
-  const handleAddSave = (data) => {
-    setDepartments((prev) => [...prev, { id: nextId++, ...data }]);
-    setShowAddForm(false);
+  const handleAddSave = async (payload) => {
+    setSaving(true);
+    setError("");
+
+    try {
+      const data = await departmentRequest("", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setDepartments((prev) => [...prev, data.data]);
+      setShowAddForm(false);
+    } catch (err) {
+      setError(err.message || "Unable to add department.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEditSave = (data) => {
-    setDepartments((prev) =>
-      prev.map((d) => (d.id === editDept.id ? { ...d, ...data } : d))
-    );
-    setEditDept(null);
+  const handleEditSave = async (payload) => {
+    setSaving(true);
+    setError("");
+
+    try {
+      const data = await departmentRequest(`/${editDept.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setDepartments((prev) =>
+        prev.map((d) => (d.id === editDept.id ? data.data : d))
+      );
+      setEditDept(null);
+    } catch (err) {
+      setError(err.message || "Unable to update department.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = () => {
-    setDepartments((prev) => prev.filter((d) => d.id !== delTarget.id));
-    setDelTarget(null);
+  const handleDelete = async () => {
+    setSaving(true);
+    setError("");
+
+    try {
+      await departmentRequest(`/${delTarget.id}`, {
+        method: "DELETE",
+      });
+      setDepartments((prev) =>
+        prev
+          .filter((d) => d.id !== delTarget.id)
+          .map((d) => d.parent === delTarget.name ? { ...d, parent: "" } : d)
+      );
+      setDelTarget(null);
+    } catch (err) {
+      setError(err.message || "Unable to delete department.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // ── If Add form is open, render it instead of the table ──────────────────
   if (showAddForm) {
     return (
       <AddDepartmentForm
         departments={departments}
         onSave={handleAddSave}
-        onCancel={() => setShowAddForm(false)}
+        onCancel={() => {
+          setError("");
+          setShowAddForm(false);
+        }}
+        saving={saving}
+        apiError={error}
       />
     );
   }
 
-  // ── Main list view ────────────────────────────────────────────────────────
   return (
     <>
       <div className="dm-page es-fade-up">
-        {/* Page header */}
         <div className="dm-page-header">
           <div>
             <h1 className="dm-page-title">Departments</h1>
             <p className="dm-page-subtitle">Manage all company departments and their hierarchy</p>
           </div>
-          <button className="dm-btn-add" onClick={() => setShowAddForm(true)}>
+          <button className="dm-btn-add" onClick={() => {
+            setError("");
+            setShowAddForm(true);
+          }}>
             <Plus size={16} />
             Add Department
           </button>
         </div>
 
-        {/* Stats strip */}
+        {error && !editDept && !delTarget && (
+          <p className="dm-field-error">{error}</p>
+        )}
+
         <div className="dm-stats-strip">
           <div className="dm-stat-chip">
             <Building2 size={15} color="#0B5FA5" />
@@ -357,15 +452,13 @@ export function DepartmentsPage() {
           </div>
         </div>
 
-        {/* Search + table card */}
         <div className="dm-table-card">
-          {/* Toolbar */}
           <div className="dm-toolbar">
             <div className="dm-search-wrapper">
               <Search size={14} className="dm-search-icon" />
               <input
                 className="dm-search-input"
-                placeholder="Search department or parent…"
+                placeholder="Search department or parent..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
               />
@@ -385,7 +478,6 @@ export function DepartmentsPage() {
             </div>
           </div>
 
-          {/* Table */}
           <div className="dm-table-wrapper es-scrollbar">
             <table className="dm-table">
               <thead>
@@ -398,7 +490,13 @@ export function DepartmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pageRows.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="dm-empty-row">
+                      Loading departments...
+                    </td>
+                  </tr>
+                ) : pageRows.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="dm-empty-row">
                       No departments match your search.
@@ -418,7 +516,7 @@ export function DepartmentsPage() {
                         {dept.parent ? (
                           <span className="dm-parent-badge">{dept.parent}</span>
                         ) : (
-                          <span className="dm-no-parent">— Top level</span>
+                          <span className="dm-no-parent">Top level</span>
                         )}
                       </td>
                       <td className="dm-td dm-td-center">
@@ -429,14 +527,20 @@ export function DepartmentsPage() {
                           <button
                             className="dm-action-btn dm-edit-btn"
                             title="Edit"
-                            onClick={() => setEditDept(dept)}
+                            onClick={() => {
+                              setError("");
+                              setEditDept(dept);
+                            }}
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             className="dm-action-btn dm-delete-btn"
                             title="Delete"
-                            onClick={() => setDelTarget(dept)}
+                            onClick={() => {
+                              setError("");
+                              setDelTarget(dept);
+                            }}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -449,10 +553,9 @@ export function DepartmentsPage() {
             </table>
           </div>
 
-          {/* Pagination footer */}
           <div className="dm-pagination">
             <span className="dm-pg-info">
-              Showing <strong>{filtered.length === 0 ? 0 : startIdx + 1}</strong>–
+              Showing <strong>{filtered.length === 0 ? 0 : startIdx + 1}</strong>-
               <strong>{Math.min(startIdx + rowsPerPage, filtered.length)}</strong> of{" "}
               <strong>{filtered.length}</strong> records
             </span>
@@ -464,7 +567,7 @@ export function DepartmentsPage() {
                 disabled={safePage === 1}
                 aria-label="Previous page"
               >
-                ‹
+                Prev
               </button>
 
               {pageNumbers.map((page, i) => {
@@ -472,7 +575,7 @@ export function DepartmentsPage() {
                 return (
                   <span key={page} className="dm-pg-num-wrap">
                     {prev && page - prev > 1 && (
-                      <span className="dm-pg-ellipsis">…</span>
+                      <span className="dm-pg-ellipsis">...</span>
                     )}
                     <button
                       className={`dm-pg-btn ${safePage === page ? "dm-pg-btn-active" : ""}`}
@@ -490,29 +593,37 @@ export function DepartmentsPage() {
                 disabled={safePage === totalPages}
                 aria-label="Next page"
               >
-                ›
+                Next
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Edit modal (overlay) */}
       {editDept && (
         <EditModal
           dept={editDept}
           departments={departments}
           onSave={handleEditSave}
-          onClose={() => setEditDept(null)}
+          onClose={() => {
+            setError("");
+            setEditDept(null);
+          }}
+          saving={saving}
+          apiError={error}
         />
       )}
 
-      {/* Delete confirm dialog */}
       {delTarget && (
         <DeleteConfirm
           dept={delTarget}
           onConfirm={handleDelete}
-          onCancel={() => setDelTarget(null)}
+          onCancel={() => {
+            setError("");
+            setDelTarget(null);
+          }}
+          deleting={saving}
+          apiError={error}
         />
       )}
     </>

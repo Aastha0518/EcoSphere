@@ -8,28 +8,61 @@ import "./EcoSphereApp.css";
 // ---------------------------------------------------------------------------
 export const FontImport = () => null;
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 // ---------------------------------------------------------------------------
 // LOGIN SCREEN
 // ---------------------------------------------------------------------------
 export function LoginScreen({ onLogin }) {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError("Enter your email and password to continue.");
+    if (!username.trim() || !password) {
+      setError("Enter your username and password to continue.");
       return;
     }
+
     setError("");
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+        }),
+      });
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        throw new Error("Login API did not return JSON. Check that the backend server is running on port 5000.");
+      }
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Login failed. Please try again.");
+      }
+
+      onLogin({
+        username: data.user?.username || username.trim(),
+        token: data.token,
+        role: data.user?.role || "User",
+      });
+    } catch (err) {
+      setError(err.message || "Unable to sign in right now.");
+    } finally {
       setLoading(false);
-      onLogin(email);
-    }, 900);
+    }
   };
 
   return (
@@ -88,13 +121,13 @@ export function LoginScreen({ onLogin }) {
           <form onSubmit={handleSubmit} className="es-form">
             <div className="es-form-group">
               <label className="es-form-label">
-                Work email
+                Username
               </label>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
                 className="es-input"
               />
             </div>
@@ -153,7 +186,7 @@ export function LoginScreen({ onLogin }) {
           </form>
 
           <p className="es-demo-footer">
-            Any email &amp; password will do — this is a demo build.
+            Sign in with your EcoSphere username and password.
           </p>
         </div>
       </div>

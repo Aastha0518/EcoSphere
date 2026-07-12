@@ -10,6 +10,8 @@ import { SphereMark } from "../components/SphereMark";
 import { DepartmentsPage } from "./Departments";
 import "./EcoSphereApp.css";
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 // -- Radial "Sustainability Score" dial -------------------------------------
 function ScoreDial({ score = 82, size = 128 }) {
   const r = 52;
@@ -45,7 +47,7 @@ const NAV_ITEMS = [
   { key: "challenges", label: "Challenges", icon: Trophy },
   { key: "badges", label: "Badges", icon: Award },
   { key: "reports", label: "Reports", icon: FileBarChart2 },
-  { key: "settings", label: "Settings", icon: Settings },
+  { key: "User", label: "Users", icon: Users },
 ];
 
 const usageData = [
@@ -341,17 +343,6 @@ function Sidebar({ active, setActive, open, setOpen }) {
           })}
         </nav>
 
-        <div className="es-sidebar-footer">
-          <div className="es-grid-status-box">
-            <div className="es-grid-status-header">
-              <Globe2 size={14} color="#0B5FA5" />
-              <span className="es-grid-status-title">Live system status</span>
-            </div>
-            <p className="es-grid-status-desc">
-              All 12 departments sync'd. CSR activities live.
-            </p>
-          </div>
-        </div>
       </aside>
     </>
   );
@@ -660,6 +651,183 @@ function EmployeesModule() {
   );
 }
 
+function AddUserForm() {
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+    role: "User",
+  });
+  const [status, setStatus] = useState({ type: "", message: "" });
+  const [saving, setSaving] = useState(false);
+
+  const updateField = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!form.username.trim() || !form.password || !form.role) {
+      setStatus({ type: "error", message: "Username, password, and role are required." });
+      return;
+    }
+
+    setSaving(true);
+    setStatus({ type: "", message: "" });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          username: form.username.trim(),
+          password: form.password,
+          role: form.role,
+        }),
+      });
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        throw new Error("Register API did not return JSON. Check that the backend server is running.");
+      }
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to add user.");
+      }
+
+      setForm({ username: "", password: "", role: "User" });
+      setStatus({ type: "success", message: data.message || "User added successfully." });
+    } catch (err) {
+      setStatus({ type: "error", message: err.message || "Unable to add user." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="es-admin-user-page es-fade-up">
+      <div className="es-page-header">
+        <div>
+          <h1>Add user</h1>
+          <p>Create a new EcoSphere account using the register API.</p>
+        </div>
+      </div>
+
+      <div className="es-card es-admin-user-card">
+        <div className="es-card-header-row">
+          <div>
+            <p className="es-card-title">User account</p>
+            <p className="es-card-subtitle">Register a User or Admin account.</p>
+          </div>
+          <div className="es-admin-user-icon">
+            <Users size={18} />
+          </div>
+        </div>
+
+        <form className="es-admin-user-form" onSubmit={handleSubmit}>
+          <label className="es-admin-field">
+            <span>Username</span>
+            <input
+              value={form.username}
+              onChange={(event) => updateField("username", event.target.value)}
+              placeholder="Enter username"
+            />
+          </label>
+
+          <label className="es-admin-field">
+            <span>Password</span>
+            <input
+              type="password"
+              value={form.password}
+              onChange={(event) => updateField("password", event.target.value)}
+              placeholder="Enter password"
+            />
+          </label>
+
+          <label className="es-admin-field">
+            <span>Role</span>
+            <select
+              value={form.role}
+              onChange={(event) => updateField("role", event.target.value)}
+            >
+              <option value="User">User</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </label>
+
+          {status.message && (
+            <p className={`es-admin-form-message ${status.type}`}>
+              {status.message}
+            </p>
+          )}
+
+          <div className="es-admin-form-actions">
+            <button type="submit" disabled={saving} className="es-admin-submit">
+              {saving ? "Adding..." : "Add user"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function UserDashboard({ user, onLogout }) {
+  const initials = user
+    .slice(0, 2)
+    .toUpperCase();
+  const userStats = [
+    { icon: Leaf, label: "My ESG Score", value: "82", delta: "Good standing", positive: true, tint: "#E9FBF5", theme: "green" },
+    { icon: Trophy, label: "Challenge Points", value: "1,250", delta: "+120 this month", positive: true, tint: "#FEF9E7", theme: "gold" },
+    { icon: Calendar, label: "CSR Activities", value: "6", delta: "2 upcoming", positive: true, tint: "#E8F3FC", theme: "blue" },
+  ];
+
+  return (
+    <div className="es-app-container es-user-dashboard">
+      <header className="es-user-header">
+        <div className="es-user-brand">
+          <SphereMark size={32} />
+          <span>EcoSphere</span>
+        </div>
+        <button onClick={onLogout} className="es-user-logout">
+          <LogOut size={15} />
+          Sign out
+        </button>
+      </header>
+
+      <main className="es-user-main">
+        <section className="es-user-welcome es-fade-up">
+          <div className="es-user-avatar">{initials}</div>
+          <div>
+            <p className="es-user-kicker">Dashboard</p>
+            <h1>Welcome, {user}</h1>
+            <p>Your EcoSphere activity summary is ready.</p>
+          </div>
+        </section>
+
+        <section className="es-stats-grid es-fade-up">
+          {userStats.map((stat) => (
+            <StatCard key={stat.label} {...stat} cardStyle="vibrant" />
+          ))}
+        </section>
+
+        <section className="es-card es-user-static-card es-fade-up">
+          <p className="es-card-title">My sustainability snapshot</p>
+          <div className="es-timeline">
+            <span><CheckCircle2 size={15} />Completed profile verification</span>
+            <span><Award size={15} />Earned Carbon Warrior badge</span>
+            <span><Calendar size={15} />Next CSR event: Tree plantation drive</span>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 function Navbar({ setSidebarOpen, user, onLogout }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const initials = user
@@ -729,7 +897,7 @@ function Navbar({ setSidebarOpen, user, onLogout }) {
   );
 }
 
-export function Dashboard({ user, onLogout }) {
+function AdminDashboard({ user, onLogout }) {
   const [active, setActive] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -757,6 +925,8 @@ export function Dashboard({ user, onLogout }) {
             <DepartmentsPage />
           ) : active === "employees" ? (
             <EmployeesModule />
+          ) : active === "settings" ? (
+            <AddUserForm />
           ) : (
             <>
               {/* Stat cards — Vibrant Gradient style */}
@@ -894,4 +1064,12 @@ export function Dashboard({ user, onLogout }) {
       </div>
     </div>
   );
+}
+
+export function Dashboard({ user, role, onLogout }) {
+  if (role === "User") {
+    return <UserDashboard user={user} onLogout={onLogout} />;
+  }
+
+  return <AdminDashboard user={user} onLogout={onLogout} />;
 }
