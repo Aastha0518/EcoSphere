@@ -78,12 +78,13 @@ const goals = [
   { label: "Sustainability challenges completed", value: 87 },
 ];
 
-function StatCard({ icon: Icon, label, value, delta, positive, tint }) {
+function StatCard({ icon: Icon, label, value, delta, positive, tint, cardStyle = "minimalist", theme = "blue" }) {
+  const isVibrant = cardStyle === "vibrant";
   return (
-    <div className="es-stat-card">
+    <div className={`es-stat-card style-${cardStyle} theme-${theme}`}>
       <div className="es-stat-card-header">
-        <div className="es-stat-icon-wrapper" style={{ background: tint }}>
-          <Icon size={18} color="#0B5FA5" />
+        <div className="es-stat-icon-wrapper" style={{ background: isVibrant ? "rgba(255, 255, 255, 0.2)" : tint }}>
+          <Icon size={18} color={isVibrant ? "#FFFFFF" : "#0B5FA5"} />
         </div>
         {delta && (
           <span
@@ -234,12 +235,12 @@ export function Dashboard({ user, onLogout }) {
 
   const stats = useMemo(
     () => [
-      { icon: Users, label: "Total Employees", value: "1,248", delta: "+4.5%", positive: true, tint: "#E8F3FC" },
-      { icon: Building2, label: "Total Departments", value: "12", delta: "100% sync'd", positive: true, tint: "#E8F3FC" },
-      { icon: Leaf, label: "Total Carbon Emission", value: "245.8 t", delta: "-12.4%", positive: true, tint: "#E9FBF5" },
-      { icon: Calendar, label: "Total CSR Activities", value: "34", delta: "+15.2%", positive: true, tint: "#E9FBF5" },
-      { icon: Trophy, label: "Total Challenges", value: "8", delta: "2 active", positive: true, tint: "#FEF9E7" },
-      { icon: Award, label: "Total Badges", value: "1,850", delta: "+8.3%", positive: true, tint: "#FEF9E7" },
+      { icon: Users, label: "Total Employees", value: "1,248", delta: "+4.5%", positive: true, tint: "#E8F3FC", theme: "blue" },
+      { icon: Building2, label: "Total Departments", value: "12", delta: "100% sync'd", positive: true, tint: "#E8F3FC", theme: "blue" },
+      { icon: Leaf, label: "Total Carbon Emission", value: "245.8 t", delta: "-12.4%", positive: true, tint: "#E9FBF5", theme: "green" },
+      { icon: Calendar, label: "Total CSR Activities", value: "34", delta: "+15.2%", positive: true, tint: "#E9FBF5", theme: "green" },
+      { icon: Trophy, label: "Total Challenges", value: "8", delta: "2 active", positive: true, tint: "#FEF9E7", theme: "gold" },
+      { icon: Award, label: "Total Badges", value: "1,850", delta: "+8.3%", positive: true, tint: "#FEF9E7", theme: "gold" },
     ],
     []
   );
@@ -252,10 +253,10 @@ export function Dashboard({ user, onLogout }) {
         <Navbar setSidebarOpen={setSidebarOpen} user={user} onLogout={onLogout} />
 
         <main className="es-dashboard-main es-scrollbar">
-          {/* Stat cards */}
+          {/* Stat cards — Vibrant Gradient style */}
           <div className="es-stats-grid es-fade-up">
             {stats.map((s) => (
-              <StatCard key={s.label} {...s} />
+              <StatCard key={s.label} {...s} cardStyle="vibrant" />
             ))}
           </div>
 
