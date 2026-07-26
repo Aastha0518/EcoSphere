@@ -32,7 +32,7 @@
 | Recharts | Data visualization (Area charts) |
 | Lucide React | Icon library |
 | Vanilla CSS | Styling & design system |
-| React Scripts 5 | Build tooling |
+| React Scripts 5 | Build tooling 
 
 ### Backend
 | Technology | Purpose |
